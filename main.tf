@@ -7,12 +7,6 @@ terraform {
   }
 }
 
-provider "aws" {
-  region     = "ap-northeast-1"
-  access_key = "AKIAREOLS2IOSYAH4E5H"
-  secret_key = "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"
-}
-
 resource "aws_vpc" "vpc" {
   cidr_block      = "10.10.0.0/22"
   enable_dns_hostnames = true
