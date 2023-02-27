@@ -8,9 +8,9 @@ terraform {
 }
 
 resource "aws_vpc" "vpc" {
-  cidr_block      = "10.10.0.0/22"
+  cidr_block      = var.cidr_block
   enable_dns_hostnames = true
- 
+
   tags = {
     Name = "test-stg-vpc"
   }
@@ -18,7 +18,7 @@ resource "aws_vpc" "vpc" {
  
 resource "aws_subnet" "public_subnet_a" {
   vpc_id     = aws_vpc.vpc.id
-  cidr_block = "10.10.0.0/25"
+  cidr_block = var.public_subnet_a
   map_public_ip_on_launch = true
   tags = {
     Name = "test-stg-public-a"
@@ -26,8 +26,8 @@ resource "aws_subnet" "public_subnet_a" {
 }
  
 resource "aws_subnet" "public_subnet_c" {
-  cidr_block = "10.10.0.128/25"
   vpc_id = aws_vpc.vpc.id
+  cidr_block = var.public_subnet_c
   map_public_ip_on_launch = true
   tags = {
     Name = "test-stg-public-c"
@@ -35,7 +35,7 @@ resource "aws_subnet" "public_subnet_c" {
 }
  
 resource "aws_subnet" "private_web_a" {
-  cidr_block = "10.10.1.0/24"
+  cidr_block = var.private_subnet_a
   vpc_id = aws_vpc.vpc.id
   tags = {
     Name = "test-stg-web-a"
@@ -43,7 +43,7 @@ resource "aws_subnet" "private_web_a" {
 }
  
 resource "aws_subnet" "private_web_c" {
-  cidr_block = "10.10.2.0/24"
+  cidr_block = var.private_subnet_c
   vpc_id = aws_vpc.vpc.id
   tags = {
     Name = "test-stg-web-c"
@@ -51,7 +51,7 @@ resource "aws_subnet" "private_web_c" {
 }
  
 resource "aws_subnet" "private_db_2a" {
-  cidr_block = "10.10.3.0/25"
+  cidr_block = var.private_subnet_2a
   vpc_id = aws_vpc.vpc.id
   tags = {
     Name = "test-stg-db-a"
@@ -59,7 +59,7 @@ resource "aws_subnet" "private_db_2a" {
 }
  
 resource "aws_subnet" "private_db_2c" {
-  cidr_block = "10.10.3.128/25"
+  cidr_block = var.private_subnet_2c
   vpc_id = aws_vpc.vpc.id
   tags = {
     Name = "test-stg-db-c"
