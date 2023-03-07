@@ -8,68 +8,76 @@ terraform {
 }
 
 resource "aws_vpc" "vpc" {
-  cidr_block      = var.cidr_block
+  cidr_block      = var.aws_vpc
   enable_dns_hostnames = true
 
-  tags = {
-    Name = "test-stg-vpc"
-  }
+  tags = merge(
+    { "Name" = var.name }, var.tags
+  )
 }
  
 resource "aws_subnet" "public_subnet_a" {
   vpc_id     = aws_vpc.vpc.id
   cidr_block = var.public_subnet_a
   map_public_ip_on_launch = true
-  tags = {
-    Name = "test-stg-public-a"
-  }
+  tags = merge(
+    { "Name" = "${var.name}stg-public-a"}, var.tags
+  )
 }
  
 resource "aws_subnet" "public_subnet_c" {
   vpc_id = aws_vpc.vpc.id
   cidr_block = var.public_subnet_c
   map_public_ip_on_launch = true
-  tags = {
-    Name = "test-stg-public-c"
-  }
+  tags = merge(
+    { "Name" = "${var.name}stg-public-c"}, var.tags
+  )
 }
  
 resource "aws_subnet" "private_web_a" {
   cidr_block = var.private_subnet_a
   vpc_id = aws_vpc.vpc.id
-  tags = {
-    Name = "test-stg-web-a"
-  }
+  tags = merge(
+    { "Name" = "${var.name}stg-web-a"}, var.tags
+  )
 }
  
 resource "aws_subnet" "private_web_c" {
   cidr_block = var.private_subnet_c
   vpc_id = aws_vpc.vpc.id
-  tags = {
-    Name = "test-stg-web-c"
-  }
+  tags = merge(
+    { "Name" = "${var.name}stg-web-c"}, var.tags
+  )
 }
  
 resource "aws_subnet" "private_db_2a" {
   cidr_block = var.private_subnet_2a
   vpc_id = aws_vpc.vpc.id
-  tags = {
-    Name = "test-stg-db-a"
-  }
+  tags = merge(
+    { "Name" = "${var.name}stg-db-a"}, var.tags
+  )
 }
  
 resource "aws_subnet" "private_db_2c" {
   cidr_block = var.private_subnet_2c
   vpc_id = aws_vpc.vpc.id
-  tags = {
-    Name = "test-stg-db-c"
-  }
+  tags = merge(
+    { "Name" = "${var.name}stg-db-c"}, var.tags
+  )
 }
-resource "aws_security_group" "allow_ssh" {
-  name        = "test-stg-sg-bastion"
-  description = "Allow SSH inbound connections"
+
+resource "aws_security_group" "sgr" {
+  
+  description = "Allow HTTP & SSH traffic connections"
   vpc_id = aws_vpc.vpc.id
  
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   ingress {
     from_port   = 22
     to_port     = 22
@@ -84,16 +92,16 @@ resource "aws_security_group" "allow_ssh" {
     cidr_blocks     = ["0.0.0.0/0"]
   }
  
-  tags = {
-    Name = "test-stg-sg-bastion"
-  }
-}
+  tags = merge(
+    { "Name" = "${var.name}stg-sg-bastion"}, var.tags
+  )
+} 
 
 resource "aws_instance" "bastion_public_a" {
   ami           = "ami-0ffac3e16de16665e"
   instance_type = "t2.micro"
   key_name = "zero one"
-  vpc_security_group_ids = [ aws_security_group.allow_ssh.id ]
+  vpc_security_group_ids = [ aws_security_group.sgr.id ]
   subnet_id = aws_subnet.public_subnet_a.id
   associate_public_ip_address = true
   root_block_device {
@@ -102,17 +110,34 @@ resource "aws_instance" "bastion_public_a" {
     encrypted = true
     delete_on_termination = true
     }
-  tags = {
-    Name = "test-stg-bastion"
-    }
+  tags = merge(
+    { "Name" = "${var.name}stg-sg-bastion"}, var.tags
+  )
 }
 
-resource "aws_internet_gateway" "ig" {
+resource "aws_internet_gateway" "default" {
   vpc_id = aws_vpc.vpc.id
  
-  tags = {
-    Name = "internet-gateway"
-  }
+  tags = merge(
+    { "Name" = "${var.name}internet-gateway"}, var.tags
+  )
+}
+
+resource "aws_eip" "nat_eip" {
+  vpc        = true
+  depends_on = [aws_internet_gateway.default]
+  tags = merge(
+    { "Name" = "nat${var.name}stg-public-a"}, var.tags
+  )
+}
+
+resource "aws_nat_gateway" "nat" {
+  subnet_id = aws_subnet.public_subnet_a.id
+  allocation_id = aws_eip.nat_eip.id
+  depends_on = [aws_internet_gateway.default]
+  tags = merge(
+    { "Name" = "nat${var.name}stg-public-a"}, var.tags
+  )
 }
 
 resource "aws_route_table" "public_subnet_a" {
@@ -120,7 +145,7 @@ resource "aws_route_table" "public_subnet_a" {
  
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.ig.id
+    gateway_id = aws_internet_gateway.default.id
   }
 }
  
@@ -129,7 +154,7 @@ resource "aws_instance" "bastion_private_web_a" {
   instance_type = "t2.micro"
   key_name = "zero one"
   subnet_id = aws_subnet.private_web_a.id
-  vpc_security_group_ids = [ aws_security_group.allow_ssh.id ]
+  vpc_security_group_ids = [ aws_security_group.sgr.id ]
   associate_public_ip_address = true
 
 # root disk
@@ -140,9 +165,9 @@ resource "aws_instance" "bastion_private_web_a" {
     delete_on_termination = true
   }
 
-  tags = {
-    Name = "test-stg-web-1"    
-  }
+  tags = merge(
+    { "Name" = "instance${var.name}stg-web-a"}, var.tags
+  )
 }
 
 resource "aws_instance" "bastion_private_web_c" {
@@ -150,7 +175,7 @@ resource "aws_instance" "bastion_private_web_c" {
   instance_type = "t2.micro"
   key_name = "zero one"
   subnet_id = aws_subnet.private_web_c.id
-  vpc_security_group_ids = [ aws_security_group.allow_ssh.id ]
+  vpc_security_group_ids = [ aws_security_group.sgr.id ]
   associate_public_ip_address = true
 
 # root disk
@@ -161,16 +186,16 @@ resource "aws_instance" "bastion_private_web_c" {
     delete_on_termination = true
   }
 
-  tags = {
-    Name = "test-stg-web-n"
-  }
+  tags = merge(
+    { "Name" = "instance${var.name}stg-web-c"}, var.tags
+  )
 }
 
 
 resource "aws_elb" "web_elb" {
-  name = "web-elb"
+  name = "elastic-load-balancer"
    security_groups = [
-    "${aws_security_group.allow_ssh.id}"
+    "${aws_security_group.sgr.id}"
   ]  
 
   subnets = [
@@ -193,6 +218,10 @@ resource "aws_elb" "web_elb" {
     instance_port = "80"
     instance_protocol = "http"
   }
+
+  tags = merge(
+    { "Name" = "${var.name}elastic-load-balancer"}, var.tags
+  )
 }
 
 resource "aws_launch_configuration" "web" {
@@ -242,14 +271,35 @@ tag {
   }
 }
 
+resource "aws_security_group" "rdssg" {
+  name = "rdssg"
+  vpc_id =  aws_vpc.vpc.id
+
+  ingress {
+    from_port = 3306
+    to_port = 3306
+    protocol = "tcp"
+    security_groups = [aws_security_group.sgr.id]
+
+  }
+
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+
+  }
+}
+
 resource "aws_db_instance" "private_db_2a" {
   allocated_storage    = 20
   db_name              = "mydb"
   engine               = "mysql"
   engine_version       = "8.0"
   instance_class       = "db.t2.micro"
-  username             = "foo"
-  password             = "foobarbaz"
+  username             = "vuson"
+  password             = "mightynovelx"
   parameter_group_name = "default.mysql8.0"
   skip_final_snapshot  = true
 }
